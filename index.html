@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#6B7A4F">
+<title>Dispensa</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cream:#FBF6EE;
+    --olive:#6B7A4F;
+    --olive-dark:#52603C;
+    --terracotta:#C4623A;
+    --ink:#3A3530;
+    --green:#2F5233;
+    --paper:#FFFDF8;
+    --line:#E7DFD0;
+    --muted:#9A8F7A;
+    --warn-bg:#FCEFE2;
+    --bad-bg:#FBE6E0;
+    --ok-bg:#EAF1E2;
+    --radius:14px;
+    --shadow: 0 1px 2px rgba(58,53,48,0.06), 0 4px 16px rgba(58,53,48,0.05);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Inter',sans-serif;
+    background:var(--cream);
+    color:var(--ink);
+    min-height:100vh;
+    -webkit-tap-highlight-color:transparent;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+  }
+  .app{
+    max-width:480px;
+    margin:0 auto;
+    padding:0 16px;
+  }
+  header.top{
+    padding-top: calc(20px + env(safe-area-inset-top));
+    padding-bottom:14px;
+    position:sticky;
+    top:0;
+    background:var(--cream);
+    z-index:10;
+    border-bottom:1px solid var(--line);
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .brand h1{
+    font-family:'Fraunces', serif;
+    font-weight:600;
+    font-size:30px;
+    margin:0;
+    letter-spacing:-0.01em;
+  }
+  .brand .date{
+    font-size:12px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    font-weight:600;
+  }
+
+  /* Stats strip */
+  .stats{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+  }
+  .stat{
+    flex:1;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:10px 12px;
+  }
+  .stat .num{
+    font-family:'Fraunces', serif;
+    font-size:24px;
+    font-weight:600;
+    line-height:1;
+  }
+  .stat .lbl{
+    font-size:11px;
+    color:var(--muted);
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    margin-top:4px;
+    font-weight:600;
+  }
+  .stat.warn .num{ color:var(--terracotta); }
+  .stat.ok .num{ color:var(--green); }
+
+  /* Tabs */
+  .tabs{
+    display:flex;
+    gap:6px;
+    margin-top:16px;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:12px;
+    padding:4px;
+  }
+  .tab{
+    flex:1;
+    text-align:center;
+    padding:9px 0;
+    border-radius:9px;
+    font-size:14px;
+    font-weight:600;
+    color:var(--muted);
+    cursor:pointer;
+    user-select:none;
+    transition:background .15s, color .15s;
+  }
+  .tab.active{
+    background:var(--olive);
+    color:#fff;
+  }
+
+  /* Search */
+  .search-row{
+    margin-top:14px;
+  }
+  .search-row input{
+    width:100%;
+    padding:11px 14px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    font-size:14px;
+    font-family:'Inter',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    outline:none;
+  }
+  .search-row input:focus{ border-color:var(--olive); }
+  .search-row input::placeholder{ color:var(--muted); }
+
+  /* Section title */
+  .section-title{
+    margin:22px 0 10px;
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:0.1em;
+    font-weight:700;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .section-title::after{
+    content:'';
+    flex:1;
+    height:1px;
+    background:var(--line);
+  }
+
+  /* Item card - jar label style */
+  .item{
+    display:flex;
+    align-items:center;
+    background:var(--paper);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    margin-bottom:8px;
+    overflow:hidden;
+    box-shadow:var(--shadow);
+  }
+  .item .tag{
+    width:8px;
+    align-self:stretch;
+    background:var(--olive);
+    flex-shrink:0;
+  }
+  .item.expiring .tag{ background:var(--terracotta); }
+  .item.expired .tag{ background:#A8453B; }
+  .item.consumed .tag{ background:var(--muted); }
+
+  .item-body{
+    flex:1;
+    padding:11px 12px;
+    display:flex;
+    flex-direction:column;
+    gap:2px;
+    min-width:0;
+  }
+  .item-name{
+    font-size:15px;
+    font-weight:600;
+    color:var(--ink);
+    white-space:nowrap;
+    overflow:hidden;
+    text-ellipsis:ellipsis;
+    text-overflow:ellipsis;
+  }
+  .item-meta{
+    font-size:12px;
+    color:var(--muted);
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .item-meta .exp-badge{
+    font-weight:700;
+  }
+  .item.expiring .exp-badge{ color:var(--terracotta); }
+  .item.expired .exp-badge{ color:#A8453B; }
+  .item.ok .exp-badge{ color:var(--green); }
+
+  .item-actions{
+    display:flex;
+    gap:6px;
+    padding:0 10px;
+    flex-shrink:0;
+  }
+  .icon-btn{
+    width:38px;
+    height:38px;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:#fff;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    font-size:18px;
+    color:var(--ink);
+    transition:transform .08s, background .15s;
+  }
+  .icon-btn:active{ transform:scale(0.92); }
+  .icon-btn.consume{ color:var(--green); border-color:#cfe1c4; }
+  .icon-btn.delete{ color:var(--terracotta); border-color:#f0d4c4; }
+
+  .empty{
+    text-align:center;
+    padding:48px 20px;
+    color:var(--muted);
+  }
+  .empty .big{
+    font-family:'Fraunces', serif;
+    font-size:20px;
+    color:var(--ink);
+    margin-bottom:6px;
+    font-weight:600;
+  }
+  .empty .small{
+    font-size:13px;
+    line-height:1.5;
+  }
+
+  /* History list (consumed) */
+  .hist-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:10px 0;
+    border-bottom:1px solid var(--line);
+    font-size:14px;
+  }
+  .hist-item:last-child{ border-bottom:none; }
+  .hist-name{ font-weight:600; }
+  .hist-date{ font-size:12px; color:var(--muted); }
+  .hist-qty{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+  /* FAB */
+  .fab{
+    position:fixed;
+    bottom: calc(20px + env(safe-area-inset-bottom));
+    right:calc(50% - 240px + 20px);
+    width:56px;
+    height:56px;
+    border-radius:50%;
+    background:var(--terracotta);
+    color:#fff;
+    border:none;
+    font-size:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 6px 20px rgba(196,98,58,0.4);
+    cursor:pointer;
+    z-index:20;
+    transition:transform .1s;
+  }
+  .fab:active{ transform:scale(0.94); }
+  @media (max-width:520px){
+    .fab{ right:20px; }
+  }
+
+  /* Modal */
+  .overlay{
+    position:fixed;
+    inset:0;
+    background:rgba(58,53,48,0.4);
+    display:none;
+    align-items:flex-end;
+    justify-content:center;
+    z-index:50;
+  }
+  .overlay.show{ display:flex; }
+  .sheet{
+    background:var(--cream);
+    width:100%;
+    max-width:480px;
+    border-radius:20px 20px 0 0;
+    padding:22px 20px calc(24px + env(safe-area-inset-bottom));
+    animation:slideup .22s ease-out;
+    max-height:88vh;
+    overflow-y:auto;
+  }
+  @keyframes slideup{
+    from{ transform:translateY(100%); }
+    to{ transform:translateY(0); }
+  }
+  .sheet h2{
+    font-family:'Fraunces', serif;
+    font-size:22px;
+    margin:0 0 16px;
+    font-weight:600;
+  }
+  .field{ margin-bottom:14px; }
+  .field label{
+    display:block;
+    font-size:12px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--muted);
+    margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%;
+    padding:12px 14px;
+    border:1px solid var(--line);
+    border-radius:10px;
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+    background:var(--paper);
+    color:var(--ink);
+    outline:none;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--olive); }
+  .row2{ display:flex; gap:10px; }
+  .row2 .field{ flex:1; }
+
+  .sheet-actions{
+    display:flex;
+    gap:10px;
+    margin-top:8px;
+  }
+  .btn{
+    flex:1;
+    padding:13px;
+    border-radius:12px;
+    border:none;
+    font-size:15px;
+    font-weight:700;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+  }
+  .btn.primary{ background:var(--olive); color:#fff; }
+  .btn.ghost{ background:transparent; color:var(--muted); border:1px solid var(--line); }
+  .btn:active{ transform:scale(0.98); }
+
+  /* Toast */
+  .toast{
+    position:fixed;
+    bottom:calc(96px + env(safe-area-inset-bottom));
+    left:50%;
+    transform:translateX(-50%) translateY(20px);
+    background:var(--ink);
+    color:#fff;
+    padding:10px 18px;
+    border-radius:30px;
+    font-size:13px;
+    font-weight:600;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s, transform .2s;
+    z-index:60;
+    white-space:nowrap;
+  }
+  .toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+  }
+
+  /* Scan button in sheet */
+  .scan-row{
+    margin-bottom:14px;
+  }
+  .scan-btn{
+    width:100%;
+    padding:13px;
+    border-radius:12px;
+    border:1.5px dashed var(--olive);
+    background:var(--ok-bg);
+    color:var(--olive-dark);
+    font-size:14px;
+    font-weight:700;
+    font-family:'Inter',sans-serif;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+  }
+  .scan-btn:active{ transform:scale(0.98); }
+  .scan-btn svg{ width:18px; height:18px; flex-shrink:0; }
+
+  /* Quick expiry chips */
+  .chip-row{
+    display:flex;
+    gap:6px;
+    flex-wrap:wrap;
+    margin-top:8px;
+  }
+  .chip{
+    padding:7px 12px;
+    border-radius:20px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink);
+    cursor:pointer;
+    white-space:nowrap;
+  }
+  .chip:active{ transform:scale(0.96); }
+  .chip.active{
+    background:var(--olive);
+    color:#fff;
+    border-color:var(--olive);
+  }
+
+  /* Scanner overlay */
+  .scanner-overlay{
+    position:fixed;
+    inset:0;
+    background:#000;
+    z-index:70;
+    display:none;
+    flex-direction:column;
+  }
+  .scanner-overlay.show{ display:flex; }
+  .scanner-overlay video{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+  }
+  .scanner-header{
+    position:absolute;
+    top:0; left:0; right:0;
+    padding: calc(16px + env(safe-area-inset-top)) 16px 16px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    z-index:2;
+    background:linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
+  }
+  .scanner-header .title{
+    color:#fff;
+    font-family:'Fraunces', serif;
+    font-size:18px;
+    font-weight:600;
+  }
+  .scanner-close{
+    width:38px; height:38px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.15);
+    border:none;
+    color:#fff;
+    font-size:18px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+  .scanner-frame{
+    position:absolute;
+    top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:78%;
+    max-width:340px;
+    aspect-ratio:1.6;
+    border:3px solid var(--terracotta);
+    border-radius:16px;
+    box-shadow:0 0 0 2000px rgba(0,0,0,0.35);
+    z-index:1;
+  }
+  .scanner-status{
+    position:absolute;
+    bottom:calc(40px + env(safe-area-inset-bottom));
+    left:0; right:0;
+    text-align:center;
+    color:#fff;
+    font-size:14px;
+    font-weight:600;
+    z-index:2;
+    padding:0 24px;
+  }
+  .scanner-status .sub{
+    font-size:12px;
+    color:rgba(255,255,255,0.7);
+    margin-top:4px;
+    font-weight:500;
+  }
+
+  /* Loading */
+  .loading{
+    text-align:center;
+    padding:60px 0;
+    color:var(--muted);
+    font-size:13px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Dispensa</h1>
+      <div class="date" id="todayLbl"></div>
+    </div>
+    <div class="stats">
+      <div class="stat" id="statTotal">
+        <div class="num">–</div>
+        <div class="lbl">In dispensa</div>
+      </div>
+      <div class="stat warn" id="statExpiring">
+        <div class="num">–</div>
+        <div class="lbl">In scadenza</div>
+      </div>
+      <div class="stat ok" id="statConsumed">
+        <div class="num">–</div>
+        <div class="lbl">Consumati (30gg)</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" data-tab="pantry">Dispensa</div>
+      <div class="tab" data-tab="history">Consumati</div>
+    </div>
+    <div class="search-row">
+      <input type="text" id="searchInput" placeholder="Cerca un alimento…">
+    </div>
+  </header>
+
+  <main id="content">
+    <div class="loading">Caricamento…</div>
+  </main>
+</div>
+
+<button class="fab" id="addBtn" aria-label="Aggiungi articolo">+</button>
+
+<!-- Add item sheet -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h2 id="sheetTitle">Nuovo articolo</h2>
+    <div class="scan-row">
+      <button class="scan-btn" id="scanBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><line x1="7" y1="8" x2="7" y2="16"/><line x1="11" y1="8" x2="11" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/><line x1="17" y1="8" x2="17" y2="16"/></svg>
+        Scansiona codice a barre
+      </button>
+    </div>
+    <div class="field">
+      <label for="f-name">Nome</label>
+      <input type="text" id="f-name" placeholder="Es. Latte intero" autocomplete="off">
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-qty">Quantità</label>
+        <input type="number" id="f-qty" placeholder="1" min="0" step="0.1" inputmode="decimal">
+      </div>
+      <div class="field">
+        <label for="f-unit">Unità</label>
+        <select id="f-unit">
+          <option value="pz">pz</option>
+          <option value="g">g</option>
+          <option value="kg">kg</option>
+          <option value="ml">ml</option>
+          <option value="l">l</option>
+          <option value="confezioni">conf.</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="f-category">Categoria</label>
+      <select id="f-category">
+        <option value="latticini">Latticini</option>
+        <option value="carne-pesce">Carne e pesce</option>
+        <option value="frutta-verdura">Frutta e verdura</option>
+        <option value="dispensa">Dispensa secca</option>
+        <option value="surgelati">Surgelati</option>
+        <option value="bevande">Bevande</option>
+        <option value="altro">Altro</option>
+      </select>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label for="f-purchase">Data acquisto</label>
+        <input type="date" id="f-purchase">
+      </div>
+      <div class="field">
+        <label for="f-expiry">Scadenza (opz.)</label>
+        <input type="date" id="f-expiry">
+        <div class="chip-row" id="expiryChips">
+          <div class="chip" data-days="3">+3 giorni</div>
+          <div class="chip" data-days="7">+1 sett.</div>
+          <div class="chip" data-days="14">+2 sett.</div>
+          <div class="chip" data-days="30">+1 mese</div>
+          <div class="chip" data-days="90">+3 mesi</div>
+          <div class="chip" data-days="180">+6 mesi</div>
+        </div>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="cancelBtn">Annulla</button>
+      <button class="btn primary" id="saveBtn">Salva</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Barcode scanner overlay -->
+<div class="scanner-overlay" id="scannerOverlay">
+  <video id="scannerVideo" autoplay muted playsinline></video>
+  <div class="scanner-header">
+    <div class="title">Scansiona codice a barre</div>
+    <button class="scanner-close" id="scannerClose" aria-label="Chiudi">✕</button>
+  </div>
+  <div class="scanner-frame"></div>
+  <div class="scanner-status" id="scannerStatus">
+    Inquadra il codice a barre del prodotto
+    <div class="sub">Funziona con prodotti confezionati industriali</div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'dispensa:items';
+const HISTORY_KEY = 'dispensa:history';
+let items = [];
+let history = [];
+let activeTab = 'pantry';
+let editingId = null;
+
+const $ = sel => document.querySelector(sel);
+const content = $('#content');
+
+function todayStr(){
+  return new Date().toISOString().slice(0,10);
+}
+
+function fmtDate(d){
+  if(!d) return '';
+  const dt = new Date(d + 'T00:00:00');
+  return dt.toLocaleDateString('it-IT', {day:'numeric', month:'short'});
+}
+
+function daysUntil(dateStr){
+  if(!dateStr) return null;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const target = new Date(dateStr + 'T00:00:00');
+  return Math.round((target - today) / 86400000);
+}
+
+function uid(){
+  return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+}
+
+function showToast(msg){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
+}
+
+async function loadData(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY);
+    items = res ? JSON.parse(res.value) : [];
+  }catch(e){
+    items = [];
+  }
+  try{
+    const res2 = await window.storage.get(HISTORY_KEY);
+    history = res2 ? JSON.parse(res2.value) : [];
+  }catch(e){
+    history = [];
+  }
+}
+
+async function saveItems(){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(items));
+  }catch(e){
+    console.error('Errore salvataggio dispensa', e);
+    showToast('Errore nel salvataggio');
+  }
+}
+
+async function saveHistory(){
+  try{
+    await window.storage.set(HISTORY_KEY, JSON.stringify(history));
+  }catch(e){
+    console.error('Errore salvataggio storico', e);
+    showToast('Errore nel salvataggio');
+  }
+}
+
+function categoryLabel(cat){
+  const map = {
+    'latticini':'Latticini',
+    'carne-pesce':'Carne e pesce',
+    'frutta-verdura':'Frutta e verdura',
+    'dispensa':'Dispensa secca',
+    'surgelati':'Surgelati',
+    'bevande':'Bevande',
+    'altro':'Altro'
+  };
+  return map[cat] || 'Altro';
+}
+
+// Default shelf-life in days, used to pre-fill expiry when category changes
+const DEFAULT_EXPIRY_DAYS = {
+  'latticini': 7,
+  'carne-pesce': 3,
+  'frutta-verdura': 5,
+  'dispensa': 180,
+  'surgelati': 180,
+  'bevande': 90,
+  'altro': null
+};
+
+function addDaysToDate(dateStr, days){
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0,10);
+}
+
+function expiryStatus(item){
+  if(!item.expiry) return {cls:'', badge:''};
+  const d = daysUntil(item.expiry);
+  if(d < 0) return {cls:'expired', badge:'Scaduto ' + Math.abs(d) + 'g fa'};
+  if(d === 0) return {cls:'expiring', badge:'Scade oggi'};
+  if(d <= 3) return {cls:'expiring', badge:'Scade in ' + d + 'g'};
+  return {cls:'ok', badge:'Scade il ' + fmtDate(item.expiry)};
+}
+
+function render(){
+  updateStats();
+  const search = $('#searchInput').value.trim().toLowerCase();
+
+  if(activeTab === 'pantry'){
+    renderPantry(search);
+  } else {
+    renderHistory(search);
+  }
+}
+
+function renderPantry(search){
+  let list = items.slice();
+  if(search){
+    list = list.filter(i => i.name.toLowerCase().includes(search));
+  }
+  // sort: expired/expiring first, then by expiry date, then no expiry last
+  list.sort((a,b)=>{
+    const da = a.expiry ? daysUntil(a.expiry) : 9999;
+    const db = b.expiry ? daysUntil(b.expiry) : 9999;
+    return da - db;
+  });
+
+  if(list.length === 0){
+    content.innerHTML = `
+      <div class="empty">
+        <div class="big">${search ? 'Nessun risultato' : 'La dispensa è vuota'}</div>
+        <div class="small">${search ? "Provo a cercare qualcos'altro." : 'Tocca + per aggiungere il primo articolo che hai acquistato.'}</div>
+      </div>`;
+    return;
+  }
+
+  // group by category
+  const groups = {};
+  list.forEach(i => {
+    const c = i.category || 'altro';
+    if(!groups[c]) groups[c] = [];
+    groups[c].push(i);
+  });
+
+  let html = '';
+  Object.keys(groups).forEach(cat => {
+    html += `<div class="section-title">${categoryLabel(cat)}</div>`;
+    groups[cat].forEach(item => {
+      const st = expiryStatus(item);
+      html += `
+        <div class="item ${st.cls}" data-id="${item.id}">
+          <div class="tag"></div>
+          <div class="item-body">
+            <div class="item-name">${escapeHtml(item.name)}</div>
+            <div class="item-meta">
+              <span>${item.qty} ${escapeHtml(item.unit)}</span>
+              ${st.badge ? `<span class="exp-badge">${st.badge}</span>` : ''}
+            </div>
+          </div>
+          <div class="item-actions">
+            <button class="icon-btn consume" data-action="consume" data-id="${item.id}" aria-label="Consuma">✓</button>
+            <button class="icon-btn delete" data-action="delete" data-id="${item.id}" aria-label="Elimina">✕</button>
+          </div>
+        </div>`;
+    });
+  });
+  content.innerHTML = html;
+}
+
+function renderHistory(search){
+  let list = history.slice();
+  if(search){
+    list = list.filter(i => i.name.toLowerCase().includes(search));
+  }
+  list.sort((a,b)=> new Date(b.consumedDate) - new Date(a.consumedDate));
+
+  if(list.length === 0){
+    content.innerHTML = `
+      <div class="empty">
+        <div class="big">${search ? 'Nessun risultato' : 'Nessun consumo registrato'}</div>
+        <div class="small">${search ? "Provo a cercare qualcos'altro." : 'Quando segni un articolo come consumato, apparirà qui.'}</div>
+      </div>`;
+    return;
+  }
+
+  // group by month
+  const groups = {};
+  list.forEach(i => {
+    const d = new Date(i.consumedDate);
+    const key = d.toLocaleDateString('it-IT', {month:'long', year:'numeric'});
+    if(!groups[key]) groups[key] = [];
+    groups[key].push(i);
+  });
+
+  let html = '';
+  Object.keys(groups).forEach(month => {
+    html += `<div class="section-title">${capitalize(month)}</div>`;
+    html += `<div class="item" style="display:block; padding:0 14px;">`;
+    groups[month].forEach((item, idx) => {
+      html += `
+        <div class="hist-item">
+          <div>
+            <div class="hist-name">${escapeHtml(item.name)}</div>
+            <div class="hist-qty">${item.qty} ${escapeHtml(item.unit)} · ${categoryLabel(item.category)}</div>
+          </div>
+          <div class="hist-date">${fmtDate(item.consumedDate)}</div>
+        </div>`;
+    });
+    html += `</div>`;
+  });
+  content.innerHTML = html;
+}
+
+function capitalize(s){
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function escapeHtml(s){
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function updateStats(){
+  $('#statTotal').querySelector('.num').textContent = items.length;
+
+  const expiringCount = items.filter(i => {
+    if(!i.expiry) return false;
+    const d = daysUntil(i.expiry);
+    return d <= 3;
+  }).length;
+  $('#statExpiring').querySelector('.num').textContent = expiringCount;
+
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 30);
+  const consumedCount = history.filter(i => new Date(i.consumedDate) >= cutoff).length;
+  $('#statConsumed').querySelector('.num').textContent = consumedCount;
+}
+
+// --- Event handlers ---
+
+$('#todayLbl').textContent = new Date().toLocaleDateString('it-IT', {weekday:'short', day:'numeric', month:'short'});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeTab = tab.dataset.tab;
+    render();
+  });
+});
+
+$('#searchInput').addEventListener('input', render);
+
+$('#addBtn').addEventListener('click', () => openSheet());
+
+$('#cancelBtn').addEventListener('click', closeSheet);
+
+// Quick expiry chips
+$('#expiryChips').addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip');
+  if(!chip) return;
+  const days = parseInt(chip.dataset.days, 10);
+  const purchase = $('#f-purchase').value || todayStr();
+  $('#f-expiry').value = addDaysToDate(purchase, days);
+  updateChipStates();
+});
+
+// Recompute default expiry when category changes (only if expiry field hasn't been customized away from a chip preset, keep simple: always offer suggestion but don't overwrite manual edits silently)
+$('#f-category').addEventListener('change', () => {
+  applyDefaultExpiry();
+});
+
+$('#f-purchase').addEventListener('change', () => {
+  updateChipStates();
+});
+
+$('#f-expiry').addEventListener('change', updateChipStates);
+
+$('#overlay').addEventListener('click', (e) => {
+  if(e.target.id === 'overlay') closeSheet();
+});
+
+function openSheet(){
+  editingId = null;
+  $('#sheetTitle').textContent = 'Nuovo articolo';
+  $('#f-name').value = '';
+  $('#f-qty').value = '1';
+  $('#f-unit').value = 'pz';
+  $('#f-category').value = 'dispensa';
+  $('#f-purchase').value = todayStr();
+  applyDefaultExpiry();
+  $('#overlay').classList.add('show');
+  setTimeout(()=> $('#f-name').focus(), 100);
+}
+
+function applyDefaultExpiry(){
+  const cat = $('#f-category').value;
+  const defDays = DEFAULT_EXPIRY_DAYS[cat];
+  const purchase = $('#f-purchase').value || todayStr();
+  if(defDays){
+    $('#f-expiry').value = addDaysToDate(purchase, defDays);
+  } else {
+    $('#f-expiry').value = '';
+  }
+  updateChipStates();
+}
+
+function updateChipStates(){
+  const purchase = $('#f-purchase').value || todayStr();
+  const expiry = $('#f-expiry').value;
+  document.querySelectorAll('#expiryChips .chip').forEach(chip => {
+    const days = parseInt(chip.dataset.days, 10);
+    const target = addDaysToDate(purchase, days);
+    chip.classList.toggle('active', expiry === target);
+  });
+}
+
+function closeSheet(){
+  $('#overlay').classList.remove('show');
+}
+
+$('#saveBtn').addEventListener('click', async () => {
+  const name = $('#f-name').value.trim();
+  if(!name){
+    showToast('Inserisci un nome');
+    $('#f-name').focus();
+    return;
+  }
+  const qty = parseFloat($('#f-qty').value) || 1;
+  const unit = $('#f-unit').value;
+  const category = $('#f-category').value;
+  const purchase = $('#f-purchase').value || todayStr();
+  const expiry = $('#f-expiry').value || null;
+
+  items.push({
+    id: uid(),
+    name, qty, unit, category,
+    purchaseDate: purchase,
+    expiry
+  });
+  await saveItems();
+  closeSheet();
+  render();
+  showToast('Articolo aggiunto');
+});
+
+content.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  const id = btn.dataset.id;
+  const action = btn.dataset.action;
+  const idx = items.findIndex(i => i.id === id);
+  if(idx === -1) return;
+
+  if(action === 'consume'){
+    const item = items[idx];
+    history.push({
+      id: uid(),
+      name: item.name,
+      qty: item.qty,
+      unit: item.unit,
+      category: item.category,
+      consumedDate: todayStr()
+    });
+    items.splice(idx, 1);
+    await saveItems();
+    await saveHistory();
+    render();
+    showToast('Segnato come consumato');
+  } else if(action === 'delete'){
+    items.splice(idx, 1);
+    await saveItems();
+    render();
+    showToast('Articolo eliminato');
+  }
+});
+
+// --- Barcode scanner ---
+let scannerStream = null;
+let scannerDetector = null;
+let scannerRAF = null;
+
+async function openScanner(){
+  if(!('BarcodeDetector' in window)){
+    showToast('Scanner non supportato su questo browser');
+    return;
+  }
+  const overlay = $('#scannerOverlay');
+  const video = $('#scannerVideo');
+  const status = $('#scannerStatus');
+  status.innerHTML = 'Inquadra il codice a barre del prodotto<div class="sub">Funziona con prodotti confezionati industriali</div>';
+
+  try{
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment' }
+    });
+  }catch(e){
+    showToast('Accesso alla fotocamera negato');
+    return;
+  }
+
+  video.srcObject = scannerStream;
+  overlay.classList.add('show');
+
+  try{
+    scannerDetector = new BarcodeDetector({
+      formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128']
+    });
+  }catch(e){
+    scannerDetector = new BarcodeDetector();
+  }
+
+  scanLoop();
+}
+
+function closeScanner(){
+  $('#scannerOverlay').classList.remove('show');
+  if(scannerRAF) cancelAnimationFrame(scannerRAF);
+  scannerRAF = null;
+  if(scannerStream){
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+}
+
+async function scanLoop(){
+  const video = $('#scannerVideo');
+  if(!scannerStream) return;
+  try{
+    const codes = await scannerDetector.detect(video);
+    if(codes && codes.length > 0){
+      const code = codes[0].rawValue;
+      handleBarcodeResult(code);
+      return; // stop loop, handled
+    }
+  }catch(e){
+    // detection error, keep trying
+  }
+  scannerRAF = requestAnimationFrame(scanLoop);
+}
+
+async function handleBarcodeResult(code){
+  closeScanner();
+  showToast('Codice letto: ' + code);
+  $('#scannerStatus').textContent = 'Ricerca prodotto…';
+
+  try{
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+    const data = await res.json();
+    if(data.status === 1 && data.product){
+      fillFormFromProduct(data.product, code);
+    }else{
+      showToast('Prodotto non trovato — inserisci i dati manualmente');
+      $('#f-name').focus();
+    }
+  }catch(e){
+    showToast('Errore di rete — inserisci i dati manualmente');
+  }
+}
+
+function fillFormFromProduct(product, code){
+  const name = product.product_name_it || product.product_name || product.generic_name || ('Codice ' + code);
+  $('#f-name').value = name;
+
+  // Try to map OFF category to our categories
+  const offCats = (product.categories_tags || []).join(' ');
+  const mapped = mapOffCategory(offCats);
+  if(mapped) $('#f-category').value = mapped;
+
+  // Try to extract a unit/quantity hint from product quantity string (e.g. "500 g", "1 l")
+  if(product.quantity){
+    const match = product.quantity.match(/([\d.,]+)\s*(g|kg|ml|l)/i);
+    if(match){
+      $('#f-qty').value = match[1].replace(',', '.');
+      $('#f-unit').value = match[2].toLowerCase();
+    }
+  }
+
+  applyDefaultExpiry();
+  showToast('Prodotto trovato: ' + name);
+}
+
+function mapOffCategory(catsStr){
+  const c = catsStr.toLowerCase();
+  if(/dairy|milk|cheese|yogurt|latticini|formaggi|latte/.test(c)) return 'latticini';
+  if(/meat|fish|poultry|carne|pesce|salumi/.test(c)) return 'carne-pesce';
+  if(/fruit|vegetable|frutta|verdura|ortaggi/.test(c)) return 'frutta-verdura';
+  if(/frozen|surgelat/.test(c)) return 'surgelati';
+  if(/beverage|drink|bevande|acqua|succh/.test(c)) return 'bevande';
+  if(/pasta|rice|flour|cereal|legum|dispensa|riso|farina/.test(c)) return 'dispensa';
+  return null;
+}
+
+$('#scanBtn').addEventListener('click', openScanner);
+$('#scannerClose').addEventListener('click', closeScanner);
+
+// --- Init ---
+(async function init(){
+  await loadData();
+  render();
+
+  // Register service worker for offline/installable support
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  }
+})();
+</script>
+</body>
+</html>

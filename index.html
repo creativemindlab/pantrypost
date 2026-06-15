@@ -398,6 +398,40 @@
   .row2{ display:flex; gap:10px; }
   .row2 .field{ flex:1; }
 
+  .field-hint{
+    font-size:12px;
+    color:var(--muted);
+    margin-top:6px;
+  }
+
+  .qty-stepper{
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .qty-stepper input{
+    flex:1;
+    text-align:center;
+    font-weight:700;
+    font-size:18px;
+  }
+  .qty-btn{
+    width:46px;
+    height:46px;
+    flex-shrink:0;
+    border-radius:10px;
+    border:1px solid var(--line);
+    background:var(--paper);
+    color:var(--ink);
+    font-size:22px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+  }
+  .qty-btn:active{ transform:scale(0.94); }
+
   .sheet-actions{
     display:flex;
     gap:10px;
@@ -684,6 +718,26 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<!-- Consume quantity overlay -->
+<div class="overlay" id="consumeOverlay">
+  <div class="sheet">
+    <h2 id="consumeTitle">Consuma</h2>
+    <div class="field">
+      <label for="consume-qty">Quantità consumata</label>
+      <div class="qty-stepper">
+        <button class="qty-btn" id="consumeMinus" type="button" aria-label="Diminuisci">−</button>
+        <input type="number" id="consume-qty" min="0.1" step="0.1" inputmode="decimal">
+        <button class="qty-btn" id="consumePlus" type="button" aria-label="Aumenta">+</button>
+      </div>
+      <div class="field-hint" id="consumeAvailable"></div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="consumeCancelBtn">Annulla</button>
+      <button class="btn primary" id="consumeConfirmBtn">Consuma</button>
+    </div>
+  </div>
+</div>
 
 <!-- Barcode scanner overlay -->
 <div class="scanner-overlay" id="scannerOverlay">
@@ -1097,6 +1151,11 @@ content.addEventListener('click', async (e) => {
   const id = btn.dataset.id;
   const action = btn.dataset.action;
 
+  if(action === 'consume'){
+    openConsumeDialog(id);
+    return;
+  }
+
   // Pull latest shared data first to minimize overwriting changes made by others
   await loadData();
 
@@ -1107,26 +1166,117 @@ content.addEventListener('click', async (e) => {
     return;
   }
 
-  if(action === 'consume'){
-    const item = items[idx];
-    history.push({
-      id: uid(),
-      name: item.name,
-      qty: item.qty,
-      unit: item.unit,
-      category: item.category,
-      consumedDate: todayStr()
-    });
-    items.splice(idx, 1);
-    await saveData();
-    render();
-    showToast('Segnato come consumato');
-  } else if(action === 'delete'){
+  if(action === 'delete'){
     items.splice(idx, 1);
     await saveData();
     render();
     showToast('Articolo eliminato');
   }
+});
+
+// --- Consume quantity dialog ---
+let consumeTargetId = null;
+
+function openConsumeDialog(id){
+  const item = items.find(i => i.id === id);
+  if(!item) return;
+  consumeTargetId = id;
+
+  $('#consumeTitle').textContent = 'Consuma ' + item.name;
+  const qtyInput = $('#consume-qty');
+  const wholeUnits = ['pz', 'confezioni'];
+  const step = wholeUnits.includes(item.unit) ? 1 : 0.1;
+  const defaultQty = Math.min(step, item.qty);
+  qtyInput.value = defaultQty;
+  qtyInput.step = step;
+  qtyInput.max = item.qty;
+  qtyInput.min = item.qty > 0 ? Math.min(step, item.qty) : step;
+  $('#consumeAvailable').textContent = `Disponibili: ${item.qty} ${item.unit}`;
+
+  $('#consumeOverlay').classList.add('show');
+  setTimeout(()=> qtyInput.focus(), 100);
+}
+
+function closeConsumeDialog(){
+  $('#consumeOverlay').classList.remove('show');
+  consumeTargetId = null;
+}
+
+$('#consumeCancelBtn').addEventListener('click', closeConsumeDialog);
+
+$('#consumeOverlay').addEventListener('click', (e) => {
+  if(e.target.id === 'consumeOverlay') closeConsumeDialog();
+});
+
+$('#consumeMinus').addEventListener('click', () => {
+  const input = $('#consume-qty');
+  const step = parseFloat(input.step) || 1;
+  let val = (parseFloat(input.value) || 0) - step;
+  const min = parseFloat(input.min) || 0.1;
+  if(val < min) val = min;
+  input.value = roundQty(val);
+});
+
+$('#consumePlus').addEventListener('click', () => {
+  const input = $('#consume-qty');
+  const step = parseFloat(input.step) || 1;
+  let val = (parseFloat(input.value) || 0) + step;
+  const max = parseFloat(input.max);
+  if(!isNaN(max) && val > max) val = max;
+  input.value = roundQty(val);
+});
+
+function roundQty(n){
+  return Math.round(n * 100) / 100;
+}
+
+$('#consumeConfirmBtn').addEventListener('click', async () => {
+  if(!consumeTargetId) return;
+
+  const input = $('#consume-qty');
+  let consumedQty = parseFloat(input.value);
+  if(isNaN(consumedQty) || consumedQty <= 0){
+    showToast('Inserisci una quantità valida');
+    return;
+  }
+
+  const targetId = consumeTargetId;
+
+  // Pull latest shared data first to minimize overwriting changes made by others
+  await loadData();
+
+  const idx = items.findIndex(i => i.id === targetId);
+  if(idx === -1){
+    closeConsumeDialog();
+    render();
+    showToast('Articolo non trovato — aggiornato dalla dispensa condivisa');
+    return;
+  }
+
+  const item = items[idx];
+  // Cap consumed quantity to what's actually available
+  if(consumedQty > item.qty) consumedQty = item.qty;
+
+  history.push({
+    id: uid(),
+    name: item.name,
+    qty: consumedQty,
+    unit: item.unit,
+    category: item.category,
+    consumedDate: todayStr()
+  });
+
+  const remaining = roundQty(item.qty - consumedQty);
+  if(remaining <= 0){
+    items.splice(idx, 1);
+  }else{
+    item.qty = remaining;
+  }
+
+  await saveData();
+  closeConsumeDialog();
+  render();
+  showToast('Segnato come consumato');
 });
 
 // --- Barcode scanner ---

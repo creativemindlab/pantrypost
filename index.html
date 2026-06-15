@@ -72,6 +72,50 @@
     font-weight:600;
   }
 
+  /* Sync status row */
+  .sync-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-top:6px;
+  }
+  .sync-status{
+    font-size:11px;
+    font-weight:600;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    gap:5px;
+  }
+  .sync-status::before{
+    content:'';
+    width:7px;
+    height:7px;
+    border-radius:50%;
+    background:var(--muted);
+    flex-shrink:0;
+  }
+  .sync-status.ok::before{ background:var(--green); }
+  .sync-status.syncing::before{
+    background:var(--olive);
+    animation:pulse 1s infinite;
+  }
+  .sync-status.error::before{ background:var(--terracotta); }
+  @keyframes pulse{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.3; }
+  }
+  .refresh-btn{
+    font-size:11px;
+    font-weight:700;
+    color:var(--olive-dark);
+    background:none;
+    border:none;
+    padding:4px 0;
+    cursor:pointer;
+  }
+  .refresh-btn:active{ opacity:0.6; }
+
   /* Stats strip */
   .stats{
     display:flex;
@@ -382,14 +426,17 @@
     background:var(--ink);
     color:#fff;
     padding:10px 18px;
-    border-radius:30px;
+    border-radius:18px;
     font-size:13px;
     font-weight:600;
     opacity:0;
     pointer-events:none;
     transition:opacity .2s, transform .2s;
     z-index:60;
-    white-space:nowrap;
+    max-width:calc(100% - 40px);
+    width:max-content;
+    text-align:center;
+    line-height:1.4;
   }
   .toast.show{
     opacity:1;
@@ -498,6 +545,7 @@
     border-radius:16px;
     box-shadow:0 0 0 2000px rgba(0,0,0,0.35);
     z-index:1;
+    transition:border-color .3s;
   }
   .scanner-status{
     position:absolute;
@@ -532,6 +580,10 @@
     <div class="brand">
       <h1>Dispensa</h1>
       <div class="date" id="todayLbl"></div>
+    </div>
+    <div class="sync-row">
+      <div class="sync-status ok" id="syncStatus">Aggiornato</div>
+      <button class="refresh-btn" id="refreshBtn" aria-label="Aggiorna">⟳ Aggiorna</button>
     </div>
     <div class="stats">
       <div class="stat" id="statTotal">
@@ -640,20 +692,23 @@
     <div class="title">Scansiona codice a barre</div>
     <button class="scanner-close" id="scannerClose" aria-label="Chiudi">✕</button>
   </div>
-  <div class="scanner-frame"></div>
+  <div class="scanner-frame" id="scannerFrame"></div>
   <div class="scanner-status" id="scannerStatus">
     Inquadra il codice a barre del prodotto
-    <div class="sub">Funziona con prodotti confezionati industriali</div>
+    <div class="sub">Tocca lo schermo per messa a fuoco</div>
   </div>
 </div>
 
 <script>
-const STORAGE_KEY = 'dispensa:items';
-const HISTORY_KEY = 'dispensa:history';
+const JSONBIN_BIN_ID = '6a3059e1da38895dfec5d8f6';
+const JSONBIN_ACCESS_KEY = '$2a$10$lncAOHeJqkcM4Fc8/VZuIOxJm5xqEclQk1NWFPs5wP0D12kIqKFXS';
+const JSONBIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
+
 let items = [];
 let history = [];
 let activeTab = 'pantry';
 let editingId = null;
+let isSyncing = false;
 
 const $ = sel => document.querySelector(sel);
 const content = $('#content');
@@ -684,40 +739,71 @@ function showToast(msg){
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._timer);
-  t._timer = setTimeout(()=> t.classList.remove('show'), 1800);
+  const duration = msg.length > 50 ? 4500 : 1800;
+  t._timer = setTimeout(()=> t.classList.remove('show'), duration);
 }
 
+function setSyncStatus(state){
+  // state: 'syncing' | 'ok' | 'error'
+  const el = $('#syncStatus');
+  if(!el) return;
+  el.className = 'sync-status ' + state;
+  if(state === 'syncing') el.textContent = 'Sincronizzazione…';
+  else if(state === 'error') el.textContent = 'Offline — dati locali';
+  else el.textContent = 'Aggiornato';
+}
+
+// Load shared data from JSONBin.io
 async function loadData(){
+  isSyncing = true;
+  setSyncStatus('syncing');
   try{
-    const res = await window.storage.get(STORAGE_KEY);
-    items = res ? JSON.parse(res.value) : [];
+    const res = await fetch(JSONBIN_URL + '/latest', {
+      headers: { 'X-Access-Key': JSONBIN_ACCESS_KEY }
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const record = data.record || {};
+    items = Array.isArray(record.items) ? record.items : [];
+    history = Array.isArray(record.history) ? record.history : [];
+    setSyncStatus('ok');
   }catch(e){
-    items = [];
+    console.error('Errore caricamento dati condivisi', e);
+    setSyncStatus('error');
+    // Fall back to whatever is currently in memory (empty on first load)
   }
+  isSyncing = false;
+}
+
+// Save shared data to JSONBin.io (always writes the full record)
+async function saveData(){
+  setSyncStatus('syncing');
   try{
-    const res2 = await window.storage.get(HISTORY_KEY);
-    history = res2 ? JSON.parse(res2.value) : [];
+    const res = await fetch(JSONBIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Access-Key': JSONBIN_ACCESS_KEY
+      },
+      body: JSON.stringify({ items, history })
+    });
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    setSyncStatus('ok');
+    return true;
   }catch(e){
-    history = [];
+    console.error('Errore salvataggio dati condivisi', e);
+    setSyncStatus('error');
+    showToast('Salvataggio non riuscito — controlla la connessione');
+    return false;
   }
 }
 
-async function saveItems(){
-  try{
-    await window.storage.set(STORAGE_KEY, JSON.stringify(items));
-  }catch(e){
-    console.error('Errore salvataggio dispensa', e);
-    showToast('Errore nel salvataggio');
-  }
-}
-
-async function saveHistory(){
-  try{
-    await window.storage.set(HISTORY_KEY, JSON.stringify(history));
-  }catch(e){
-    console.error('Errore salvataggio storico', e);
-    showToast('Errore nel salvataggio');
-  }
+// Re-fetch latest data from the shared bin, then re-render.
+// Used for manual refresh and periodic background sync.
+async function syncNow(){
+  if(isSyncing) return;
+  await loadData();
+  render();
 }
 
 function categoryLabel(cat){
@@ -990,13 +1076,16 @@ $('#saveBtn').addEventListener('click', async () => {
   const purchase = $('#f-purchase').value || todayStr();
   const expiry = $('#f-expiry').value || null;
 
+  // Pull latest shared data first to minimize overwriting changes made by others
+  await loadData();
+
   items.push({
     id: uid(),
     name, qty, unit, category,
     purchaseDate: purchase,
     expiry
   });
-  await saveItems();
+  await saveData();
   closeSheet();
   render();
   showToast('Articolo aggiunto');
@@ -1007,8 +1096,16 @@ content.addEventListener('click', async (e) => {
   if(!btn) return;
   const id = btn.dataset.id;
   const action = btn.dataset.action;
+
+  // Pull latest shared data first to minimize overwriting changes made by others
+  await loadData();
+
   const idx = items.findIndex(i => i.id === id);
-  if(idx === -1) return;
+  if(idx === -1){
+    render();
+    showToast('Articolo non trovato — aggiornato dalla dispensa condivisa');
+    return;
+  }
 
   if(action === 'consume'){
     const item = items[idx];
@@ -1021,13 +1118,12 @@ content.addEventListener('click', async (e) => {
       consumedDate: todayStr()
     });
     items.splice(idx, 1);
-    await saveItems();
-    await saveHistory();
+    await saveData();
     render();
     showToast('Segnato come consumato');
   } else if(action === 'delete'){
     items.splice(idx, 1);
-    await saveItems();
+    await saveData();
     render();
     showToast('Articolo eliminato');
   }
@@ -1039,22 +1135,75 @@ let scannerDetector = null;
 let scannerRAF = null;
 
 async function openScanner(){
+  // Secure context check (HTTPS required for camera access)
+  if(!window.isSecureContext){
+    showToast('Serve HTTPS per usare la fotocamera (apri il sito con https://)');
+    return;
+  }
   if(!('BarcodeDetector' in window)){
     showToast('Scanner non supportato su questo browser');
+    return;
+  }
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+    showToast('Fotocamera non disponibile su questo browser');
     return;
   }
   const overlay = $('#scannerOverlay');
   const video = $('#scannerVideo');
   const status = $('#scannerStatus');
-  status.innerHTML = 'Inquadra il codice a barre del prodotto<div class="sub">Funziona con prodotti confezionati industriali</div>';
+  status.innerHTML = 'Inquadra il codice a barre del prodotto<div class="sub">Tocca lo schermo per messa a fuoco</div>';
 
   try{
+    // Request continuous autofocus where supported; fall back gracefully if not
     scannerStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment' }
+      video: {
+        facingMode: 'environment',
+        focusMode: 'continuous',
+        advanced: [{ focusMode: 'continuous' }]
+      }
     });
   }catch(e){
-    showToast('Accesso alla fotocamera negato');
-    return;
+    // Some browsers reject unknown constraints entirely; retry without focus hints
+    try{
+      scannerStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+    }catch(e2){
+      console.error('Errore accesso fotocamera:', e2.name, e2.message);
+      let msg;
+      switch(e2.name){
+        case 'NotAllowedError':
+          msg = 'Permesso fotocamera negato per questo sito. Controlla le autorizzazioni del sito (icona lucchetto nella barra indirizzi).';
+          break;
+        case 'NotFoundError':
+          msg = 'Nessuna fotocamera trovata sul dispositivo.';
+          break;
+        case 'NotReadableError':
+          msg = "Fotocamera occupata da un'altra app. Chiudi le altre app e riprova.";
+          break;
+        case 'OverconstrainedError':
+          msg = 'Fotocamera posteriore non disponibile.';
+          break;
+        case 'SecurityError':
+          msg = 'Accesso bloccato per motivi di sicurezza (verifica HTTPS).';
+          break;
+        default:
+          msg = 'Errore fotocamera: ' + e2.name + ' — ' + e2.message;
+      }
+      showToast(msg);
+      return;
+    }
+  }
+
+  // If continuous autofocus isn't already applied, try applying it as a separate constraint
+  try{
+    const track = scannerStream.getVideoTracks()[0];
+    const caps = track.getCapabilities ? track.getCapabilities() : {};
+    if(caps.focusMode && caps.focusMode.includes('continuous')){
+      await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] });
+    }
+  }catch(e){
+    // Not supported on this device/browser — tap-to-focus hint below covers this
   }
 
   video.srcObject = scannerStream;
@@ -1069,6 +1218,7 @@ async function openScanner(){
   }
 
   scanLoop();
+  enableTapToFocus();
 }
 
 function closeScanner(){
@@ -1079,6 +1229,52 @@ function closeScanner(){
     scannerStream.getTracks().forEach(t => t.stop());
     scannerStream = null;
   }
+}
+
+// Allow the user to tap the video to trigger a focus attempt.
+// Uses pointsOfInterest where supported, otherwise toggles
+// single-shot/continuous focusMode to nudge the camera to refocus.
+function enableTapToFocus(){
+  const video = $('#scannerVideo');
+  const frame = $('#scannerFrame');
+
+  const handler = async (ev) => {
+    if(!scannerStream) return;
+    const track = scannerStream.getVideoTracks()[0];
+    if(!track || !track.getCapabilities) return;
+    const caps = track.getCapabilities();
+
+    // Visual feedback: briefly pulse the frame
+    frame.style.borderColor = 'var(--olive)';
+    setTimeout(() => { frame.style.borderColor = ''; }, 400);
+
+    try{
+      if(caps.pointsOfInterest){
+        const rect = video.getBoundingClientRect();
+        const x = (ev.touches ? ev.touches[0].clientX : ev.clientX) - rect.left;
+        const y = (ev.touches ? ev.touches[0].clientY : ev.clientY) - rect.top;
+        const px = Math.min(Math.max(x / rect.width, 0), 1);
+        const py = Math.min(Math.max(y / rect.height, 0), 1);
+        await track.applyConstraints({
+          advanced: [{ pointsOfInterest: [{ x: px, y: py }] }]
+        });
+      }
+      if(caps.focusMode && caps.focusMode.includes('single-shot')){
+        await track.applyConstraints({ advanced: [{ focusMode: 'single-shot' }] });
+        // Return to continuous afterwards if supported
+        if(caps.focusMode.includes('continuous')){
+          setTimeout(() => {
+            track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(()=>{});
+          }, 1000);
+        }
+      }
+    }catch(e){
+      // Tap-to-focus not supported on this device — no-op
+    }
+  };
+
+  video.addEventListener('click', handler);
+  video.addEventListener('touchstart', handler, { passive: true });
 }
 
 async function scanLoop(){
@@ -1152,6 +1348,11 @@ function mapOffCategory(catsStr){
 $('#scanBtn').addEventListener('click', openScanner);
 $('#scannerClose').addEventListener('click', closeScanner);
 
+$('#refreshBtn').addEventListener('click', async () => {
+  await syncNow();
+  showToast('Dispensa aggiornata');
+});
+
 // --- Init ---
 (async function init(){
   await loadData();
@@ -1161,6 +1362,20 @@ $('#scannerClose').addEventListener('click', closeScanner);
   if('serviceWorker' in navigator){
     navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
+
+  // Re-sync when the app becomes visible again (e.g. user reopens it)
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible'){
+      syncNow();
+    }
+  });
+
+  // Periodic background sync every 30 seconds while the app is open
+  setInterval(() => {
+    if(document.visibilityState === 'visible'){
+      syncNow();
+    }
+  }, 30000);
 })();
 </script>
 </body>

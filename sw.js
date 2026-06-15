@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dispensa-v1';
+const CACHE_NAME = 'dispensa-v2';
 const ASSETS = [
   './index.html',
   './manifest.json',
@@ -23,15 +23,24 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+
+  // Never intercept requests to external APIs (e.g. JSONBin, Open Food Facts).
+  // These must always go to the network so shared data stays up to date.
+  if (url.origin !== self.location.origin) {
+    return;
+  }
+
   if (event.request.method !== 'GET') return;
+
+  // Network-first for same-origin app files, so updates (and this SW fix)
+  // are picked up quickly; fall back to cache when offline.
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) return cached;
-      return fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      }).catch(() => cached);
-    })
+    fetch(event.request).then((response) => {
+      const copy = response.clone();
+      caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+      return response;
+    }).catch(() => caches.match(event.request))
   );
 });
+

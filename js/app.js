@@ -4,7 +4,7 @@
 
 // ---------- Configurazione JSONBin ----------
 const JSONBIN_BIN_ID  = '6a3059e1da38895dfec5d8f6';
-const JSONBIN_API_KEY = '$2a$10$lncAOHeJqkcM4Fc8/VZuIOxJm5xqEclQk1NWFPs5wP0D14kIqKFXS';
+const JSONBIN_API_KEY = '$2a$10$lncAOHeJqkcM4Fc8/VZuIOxJm5xqEclQk1NWFPs5wP0D12kIqKFXS';
 const JSONBIN_URL     = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // ---------- Stato applicazione ----------

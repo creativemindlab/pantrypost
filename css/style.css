@@ -32,6 +32,12 @@
   --font-serif:   'Fraunces', serif;
   --tab-h:        64px;
   --header-h:     auto;
+
+  /* Alias di compatibilità (usati inline da alcuni componenti JS) */
+  --green-light:  var(--ok-bg);
+  --red:          var(--terracotta-dk);
+  --red-light:    var(--bad-bg);
+  --gray-600:     var(--muted);
 }
 
 html, body {

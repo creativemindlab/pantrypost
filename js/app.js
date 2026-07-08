@@ -26,8 +26,9 @@ export async function loadData() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
     const record = json.record || {};
-    state.pantry     = record.pantry     || [];
-    state.consumed   = record.consumed   || [];
+    // Schema JSONBin: items/history (nomi originali, per retrocompatibilità)
+    state.pantry     = record.items     || [];
+    state.consumed   = record.history   || [];
     state.listaSpesa = record.listaSpesa || [];
     setSyncState('ok');
   } catch (err) {
@@ -53,8 +54,9 @@ export async function saveData() {
         'X-Access-Key': JSONBIN_API_KEY
       },
       body: JSON.stringify({
-        pantry:     state.pantry,
-        consumed:   state.consumed,
+        // Schema JSONBin: items/history (nomi originali, per retrocompatibilità)
+        items:      state.pantry,
+        history:    state.consumed,
         listaSpesa: state.listaSpesa,
       })
     });

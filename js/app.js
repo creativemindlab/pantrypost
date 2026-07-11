@@ -194,7 +194,7 @@ export function scadenzaSuggerita(categoriaId, congelato = false) {
 
 // ---------- Utility: suggerimento categoria in base al nome prodotto ----------
 const KEYWORDS_CATEGORIA = {
-  latticini:   ['latte', 'formaggio', 'mozzarella', 'yogurt', 'burro', 'panna', 'ricotta', 'parmigiano', 'grana', 'stracchino', 'mascarpone', 'crescenza', 'philadelphia'],
+  latticini:   ['latte', 'formaggio', 'mozzarella', 'yogurt', 'burro', 'panna', 'ricotta', 'parmigiano', 'grana', 'stracchino', 'mascarpone', 'crescenza', 'philadelphia','squaquerone','bucciato'],
   uova:        ['uova', 'uovo'],
   salumi:      ['prosciutto', 'salame', 'mortadella', 'speck', 'bresaola', 'pancetta', 'coppa', 'wurstel', 'salsiccia'],
   carne:       ['pollo', 'manzo', 'maiale', 'tacchino', 'vitello', 'macinato', 'agnello', 'bistecca', 'costine', 'hamburger', 'arrosto'],
@@ -208,7 +208,7 @@ const KEYWORDS_CATEGORIA = {
   bevande:     ['acqua', 'vino', 'birra', 'succo', 'bibita', 'caffè', 'caffe', 'tè', 'the ', 'aranciata', 'cola'],
   condimenti:  ['olio', 'aceto', 'sale', 'pepe', 'spezie', 'senape', 'maionese', 'ketchup', 'zucchero'],
   dolci_snack: ['cioccolat', 'biscotti', 'patatine', 'caramelle', 'merendine', 'snack', 'crostata', 'torta'],
-  casa_igiene: ['detersivo', 'sapone', 'shampoo', 'dentifricio', 'carta igienica', 'ammorbidente', 'candeggina', 'detergente'],
+  casa_igiene: ['detersivo', 'sapone', 'shampoo', 'dentifricio', 'carta igienica', 'ammorbidente', 'detergente'],
 };
 
 export function suggerisciCategoria(nome) {

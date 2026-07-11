@@ -9,7 +9,7 @@ const JSONBIN_URL     = `https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`;
 
 // ---------- Stato applicazione ----------
 export const state = {
-  pantry:     [],   // { id, nome, categoria, quantita, unita, scadenza, aggiunto_il }
+  pantry:     [],   // { id, nome, categoria, quantita, unita, scadenza, aggiunto_il, congelato }
   consumed:   [],   // { id, nome, categoria, quantita, unita, consumato_il }
   listaSpesa: [],   // { id, nome, quantita, unita, categoria, nota, spuntato }
 };
@@ -156,20 +156,67 @@ export function stepForUnit(unita) {
 }
 
 // ---------- Categorie e scadenze default ----------
+// frozenDays: scadenza suggerita se l'item è marcato come congelato (flag per-item,
+// non legato alla categoria "surgelati" che resta un fallback generico per prodotti
+// già surgelati all'acquisto). Categorie senza frozenDays ignorano il flag.
 export const CATEGORIE = [
-  { id: 'latticini',  label: '🧀 Latticini',   defaultDays: 7  },
-  { id: 'carne',      label: '🥩 Carne',        defaultDays: 3  },
-  { id: 'pesce',      label: '🐟 Pesce',        defaultDays: 2  },
-  { id: 'verdure',    label: '🥦 Verdure',      defaultDays: 5  },
-  { id: 'frutta',     label: '🍎 Frutta',       defaultDays: 7  },
-  { id: 'cereali',    label: '🌾 Cereali',      defaultDays: 365 },
-  { id: 'conserve',   label: '🥫 Conserve',     defaultDays: 730 },
-  { id: 'surgelati',  label: '🧊 Surgelati',    defaultDays: 90  },
-  { id: 'bevande',    label: '🥤 Bevande',      defaultDays: 180 },
-  { id: 'condimenti', label: '🫙 Condimenti',   defaultDays: 365 },
-  { id: 'altro',      label: '📦 Altro',        defaultDays: 30  },
+  { id: 'latticini',   label: '🧀 Latticini',    defaultDays: 7,    frozenDays: 90  },
+  { id: 'uova',        label: '🥚 Uova',          defaultDays: 25 },
+  { id: 'carne',       label: '🥩 Carne',         defaultDays: 3,    frozenDays: 180 },
+  { id: 'salumi',      label: '🥓 Salumi',        defaultDays: 6,    frozenDays: 60  },
+  { id: 'pesce',       label: '🐟 Pesce',         defaultDays: 2,    frozenDays: 120 },
+  { id: 'verdure',     label: '🥦 Verdure',       defaultDays: 5,    frozenDays: 240 },
+  { id: 'frutta',      label: '🍎 Frutta',        defaultDays: 7,    frozenDays: 240 },
+  { id: 'pane',        label: '🥖 Pane',          defaultDays: 4,    frozenDays: 90  },
+  { id: 'cereali',     label: '🌾 Cereali',       defaultDays: 365 },
+  { id: 'conserve',    label: '🥫 Conserve',      defaultDays: 730 },
+  { id: 'surgelati',   label: '🧊 Surgelati',     defaultDays: 90  },
+  { id: 'bevande',     label: '🥤 Bevande',       defaultDays: 180 },
+  { id: 'condimenti',  label: '🫙 Condimenti',    defaultDays: 365 },
+  { id: 'dolci_snack', label: '🍪 Dolci/Snack',   defaultDays: 180 },
+  { id: 'casa_igiene', label: '🧴 Casa/Igiene',   defaultDays: 3650 },
+  { id: 'altro',       label: '📦 Altro',         defaultDays: 30  },
 ];
 
 export function getCategoriaLabel(id) {
   return CATEGORIE.find(c => c.id === id)?.label ?? id ?? '—';
+}
+
+// ---------- Utility: scadenza suggerita in base a categoria + flag congelato ----------
+export function scadenzaSuggerita(categoriaId, congelato = false) {
+  const cat = CATEGORIE.find(c => c.id === categoriaId);
+  if (!cat) return '';
+  const giorni = (congelato && cat.frozenDays) ? cat.frozenDays : cat.defaultDays;
+  const d = new Date();
+  d.setDate(d.getDate() + giorni);
+  return d.toISOString().slice(0, 10);
+}
+
+// ---------- Utility: suggerimento categoria in base al nome prodotto ----------
+const KEYWORDS_CATEGORIA = {
+  latticini:   ['latte', 'formaggio', 'mozzarella', 'yogurt', 'burro', 'panna', 'ricotta', 'parmigiano', 'grana', 'stracchino', 'mascarpone', 'crescenza', 'philadelphia'],
+  uova:        ['uova', 'uovo'],
+  salumi:      ['prosciutto', 'salame', 'mortadella', 'speck', 'bresaola', 'pancetta', 'coppa', 'wurstel', 'salsiccia'],
+  carne:       ['pollo', 'manzo', 'maiale', 'tacchino', 'vitello', 'macinato', 'agnello', 'bistecca', 'costine', 'hamburger', 'arrosto'],
+  pesce:       ['pesce', 'salmone', 'tonno fresco', 'gamberi', 'gamberetti', 'merluzzo', 'orata', 'branzino', 'cozze', 'vongole', 'calamari', 'polpo', 'alici'],
+  verdure:     ['pomodor', 'insalata', 'zucchin', 'carota', 'carote', 'patata', 'patate', 'cipolla', 'cipolle', 'peperon', 'melanzan', 'broccoli', 'spinaci', 'fagiolini', 'funghi', 'aglio', 'sedano', 'lattuga', 'rucola'],
+  frutta:      ['mela', 'mele', 'banana', 'arancia', 'arance', 'pera', 'pere', 'uva', 'fragol', 'kiwi', 'pesche', 'pesca', 'limone', 'limoni', 'anguria', 'melone', 'ciliegie', 'ananas', 'mandarini'],
+  pane:        ['pane', 'panini', 'baguette', 'focaccia', 'piadina', 'grissini', 'michetta'],
+  cereali:     ['pasta', 'riso', 'farina', 'cereali', 'fette biscottate', 'orzo', 'farro', 'cous cous', 'avena', 'muesli', 'spaghetti', 'penne', 'fusilli'],
+  conserve:    ['passata', 'pelati', 'legumi', 'fagioli', 'ceci', 'lenticchie', 'marmellata', 'sottaceti', 'sottolio', 'tonno in scatola', 'tonno scatola'],
+  surgelati:   ['surgelat', 'gelato'],
+  bevande:     ['acqua', 'vino', 'birra', 'succo', 'bibita', 'caffè', 'caffe', 'tè', 'the ', 'aranciata', 'cola'],
+  condimenti:  ['olio', 'aceto', 'sale', 'pepe', 'spezie', 'senape', 'maionese', 'ketchup', 'zucchero'],
+  dolci_snack: ['cioccolat', 'biscotti', 'patatine', 'caramelle', 'merendine', 'snack', 'crostata', 'torta'],
+  casa_igiene: ['detersivo', 'sapone', 'shampoo', 'dentifricio', 'carta igienica', 'ammorbidente', 'candeggina', 'detergente'],
+};
+
+export function suggerisciCategoria(nome) {
+  if (!nome) return null;
+  const n = nome.toLowerCase().trim();
+  if (n.length < 2) return null;
+  for (const [catId, keywords] of Object.entries(KEYWORDS_CATEGORIA)) {
+    if (keywords.some(k => n.includes(k))) return catId;
+  }
+  return null;
 }

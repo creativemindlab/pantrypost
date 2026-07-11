@@ -4,7 +4,7 @@
 import {
   state, scheduleSave, uid,
   formatDate, daysToExpiry, expiryClass, expiryLabel,
-  showToast, stepForUnit, CATEGORIE, getCategoriaLabel
+  showToast, stepForUnit, CATEGORIE, getCategoriaLabel, scadenzaSuggerita, suggerisciCategoria
 } from './app.js';
 
 // ---------- Render principale ----------
@@ -98,7 +98,7 @@ function renderPantryItem(item) {
   return `
     <div class="card pantry-item">
       <div class="pantry-item-info">
-        <div class="pantry-item-name">${escHtml(item.nome)}</div>
+        <div class="pantry-item-name">${item.congelato ? '🧊 ' : ''}${escHtml(item.nome)}</div>
         <div class="pantry-item-meta">
           <span class="badge badge-green">${getCategoriaLabel(item.categoria)}</span>
           <span class="${cls}" style="margin-left:6px;font-size:0.75rem">${lbl}</span>
@@ -118,12 +118,7 @@ function renderPantryItem(item) {
 function openAddModal(prefill = {}) {
   const modal = document.getElementById('modal-overlay');
   const defaultScadenza = prefill.categoria
-    ? (() => {
-        const cat = CATEGORIE.find(c => c.id === prefill.categoria);
-        if (!cat) return '';
-        const d = new Date(); d.setDate(d.getDate() + cat.defaultDays);
-        return d.toISOString().slice(0, 10);
-      })()
+    ? scadenzaSuggerita(prefill.categoria, !!prefill.congelato)
     : '';
 
   modal.innerHTML = `
@@ -156,6 +151,11 @@ function openAddModal(prefill = {}) {
         ).join('')}
       </select>
 
+      <label class="checkbox-row mt-8">
+        <input type="checkbox" id="m-congelato" ${prefill.congelato ? 'checked' : ''}>
+        🧊 Congelato
+      </label>
+
       <label class="input-label mt-8">Scadenza (opzionale)</label>
       <input class="input" id="m-scadenza" type="date"
         value="${prefill.scadenza ? prefill.scadenza.slice(0,10) : defaultScadenza}">
@@ -169,14 +169,31 @@ function openAddModal(prefill = {}) {
     </div>`;
   modal.classList.add('open');
 
-  // Aggiorna scadenza default quando cambia categoria
-  document.getElementById('m-cat').addEventListener('change', e => {
-    const cat = CATEGORIE.find(c => c.id === e.target.value);
-    if (cat) {
-      const d = new Date(); d.setDate(d.getDate() + cat.defaultDays);
-      document.getElementById('m-scadenza').value = d.toISOString().slice(0, 10);
+  // Aggiorna scadenza suggerita quando cambia categoria o flag congelato
+  const aggiornaScadenza = () => {
+    const cat = document.getElementById('m-cat').value;
+    const congelato = document.getElementById('m-congelato').checked;
+    document.getElementById('m-scadenza').value = scadenzaSuggerita(cat, congelato);
+  };
+
+  // Suggerimento automatico categoria in base al nome digitato.
+  // Attivo solo se non c'è già una categoria pre-impostata (nuovo item manuale,
+  // non da barcode né in modifica). Si disattiva appena l'utente sceglie a mano.
+  let autoSuggest = !prefill.categoria;
+  document.getElementById('m-nome').addEventListener('input', e => {
+    if (!autoSuggest) return;
+    const suggerita = suggerisciCategoria(e.target.value);
+    if (suggerita) {
+      document.getElementById('m-cat').value = suggerita;
+      aggiornaScadenza();
     }
   });
+
+  document.getElementById('m-cat').addEventListener('change', () => {
+    autoSuggest = false;
+    aggiornaScadenza();
+  });
+  document.getElementById('m-congelato').addEventListener('change', aggiornaScadenza);
 
   document.getElementById('m-cancel').addEventListener('click', closeModal);
   document.getElementById('m-save').addEventListener('click', () => {
@@ -189,6 +206,7 @@ function openAddModal(prefill = {}) {
       unita:       document.getElementById('m-unita').value,
       categoria:   document.getElementById('m-cat').value,
       scadenza:    document.getElementById('m-scadenza').value || null,
+      congelato:   document.getElementById('m-congelato').checked,
       aggiunto_il: prefill.aggiunto_il || new Date().toISOString(),
     };
     if (prefill.id) {
@@ -367,14 +385,19 @@ function mapOFFCategory(tags = []) {
   if (!tags.length) return 'altro';
   const t = tags.join(' ');
   if (t.includes('dair') || t.includes('latt') || t.includes('formagg')) return 'latticini';
+  if (t.includes('egg') || t.includes('uov')) return 'uova';
+  if (t.includes('cured') || t.includes('salum') || t.includes('ham') || t.includes('sausage') || t.includes('salam')) return 'salumi';
   if (t.includes('meat') || t.includes('carne')) return 'carne';
   if (t.includes('fish') || t.includes('pesce')) return 'pesce';
   if (t.includes('vegetable') || t.includes('verdure')) return 'verdure';
   if (t.includes('fruit') || t.includes('frutta')) return 'frutta';
-  if (t.includes('cereal') || t.includes('pasta') || t.includes('bread')) return 'cereali';
+  if (t.includes('bread') || t.includes('pane') || t.includes('bakery')) return 'pane';
+  if (t.includes('cereal') || t.includes('pasta')) return 'cereali';
   if (t.includes('conserv') || t.includes('canned')) return 'conserve';
   if (t.includes('frozen') || t.includes('surgelat')) return 'surgelati';
   if (t.includes('drink') || t.includes('bevand')) return 'bevande';
+  if (t.includes('snack') || t.includes('candy') || t.includes('chocolate') || t.includes('dolci') || t.includes('biscuit')) return 'dolci_snack';
+  if (t.includes('clean') || t.includes('hygiene') || t.includes('detergent') || t.includes('igiene')) return 'casa_igiene';
   return 'altro';
 }
 

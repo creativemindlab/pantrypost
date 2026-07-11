@@ -4,7 +4,7 @@
 import {
   state, scheduleSave, uid,
   showToast, stepForUnit, CATEGORIE, getCategoriaLabel,
-  formatDate
+  formatDate, suggerisciCategoria
 } from './app.js';
 
 // ---------- Render principale ----------
@@ -163,6 +163,19 @@ function openAddModal(prefill = {}) {
 
   document.getElementById('ls-cancel').addEventListener('click', closeModal);
   modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+  // Suggerimento automatico categoria in base al nome digitato.
+  // Attivo solo se non c'è già una categoria pre-impostata; si disattiva
+  // appena l'utente sceglie la categoria a mano.
+  let autoSuggest = !prefill.categoria;
+  document.getElementById('ls-nome').addEventListener('input', e => {
+    if (!autoSuggest) return;
+    const suggerita = suggerisciCategoria(e.target.value);
+    if (suggerita) document.getElementById('ls-cat').value = suggerita;
+  });
+  document.getElementById('ls-cat').addEventListener('change', () => {
+    autoSuggest = false;
+  });
 
   document.getElementById('ls-save').addEventListener('click', () => {
     const nome = document.getElementById('ls-nome').value.trim();
